@@ -1,0 +1,111 @@
+﻿Commands:
+
+1. 安装 Nuget 包及依赖包：
+	ReactiveUI
+	ReactiveUI.WinForms
+
+2. 创建 ViewModel：
+	创建类并继承 ReactiveUI.ReactiveObject；
+	创建所需命令并绑定方法：
+		/// <summary>
+        /// 无参命令
+        /// </summary>
+        public ReactiveCommand CommandWithoutParam { get; }
+
+        /// <summary>
+        /// 有参命令
+        /// </summary>
+        public ReactiveCommand CommandWithParam { get; }
+
+        /// <summary>
+        /// 需参命令
+        /// </summary>
+        public ReactiveCommand CommandRequireParam { get; }
+	
+	构造函数创建命令对象：
+		public CommandViewModel()
+        {
+            //创建无参命令
+            CommandWithoutParam = ReactiveCommand.Create(FunctionWhithoutParam);
+            //创建有参命令
+            CommandWithParam = ReactiveCommand.Create<string>(FunctionWithParam);
+            //创建需参命令
+            CommandRequireParam = ReactiveCommand.Create(FunctionRequireParam,
+                //设计所需参数要求
+                this.WhenAnyValue(vm => vm.ParamRequired1, vm => vm.ParamRequired2).Select(param => !string.IsNullOrEmpty(param.Item1) && !string.IsNullOrEmpty(param.Item2)));
+        }
+
+	设计需参方法的参数属性：
+        private string paramRequired1;
+        /// <summary>
+        /// 需要的参数1
+        /// </summary>
+        public string ParamRequired1
+        {
+            get => paramRequired1;
+            set => this.RaiseAndSetIfChanged(ref paramRequired1, value);
+        }
+
+        private string paramRequired2;
+        /// <summary>
+        /// 需要的参数2
+        /// </summary>
+        public string ParamRequired2
+        {
+            get => paramRequired2;
+            set => this.RaiseAndSetIfChanged(ref paramRequired2, value);
+        }
+
+	设计方法：
+	    /// <summary>
+        /// 无参方法
+        /// </summary>
+        private void FunctionWhithoutParam() => MessageBox.Show("调用了无参方法 ...");
+
+        /// <summary>
+        /// 有参方法
+        /// </summary>
+        private void FunctionWithParam(string param) => MessageBox.Show($"调用了有参方法：{param}");
+
+        /// <summary>
+        /// 需参方法
+        /// </summary>
+        private void FunctionRequireParam() => MessageBox.Show($"调用了需参方法：{paramRequired1} & {paramRequired2}");
+
+3. 创建 View：
+	创建 Form 并继承 ReactiveUI.IViewFor<{ViewModel类型}>；
+	实现 IViewFor<> 接口：
+		//绑定的对象
+	    public CommandViewModel ViewModel { get; set; }
+
+        object IViewFor.ViewModel
+        {
+            get => ViewModel;
+            set => ViewModel = (CommandViewModel)value;
+        }
+
+	View 构造函数内命令绑定：
+		绑定参数：(ViewModel对象, vm => 命令对象, v => View 的控件的控件, v => 需要的参数, "{绑定的事件名称}" );
+
+		this.WhenActivated(action=> {
+            //绑定无参命令
+            action(this.BindCommand(ViewModel, vm=> vm.CommandWithoutParam, v=>v.CommandWOParamButton));
+
+            //绑定有参命令
+            action(this.BindCommand(ViewModel, vm => vm.CommandWithParam, v => v.CommandWParamButton, this.WhenAnyValue(v => v.WithParamValueTextBox.Text),"MouseLeave"));
+
+            //绑定所需参数
+            action(this.Bind(ViewModel, vm => vm.ParamRequired1, v => v.RequiredParamValue1TextBox.Text));
+            action(this.Bind(ViewModel, vm => vm.ParamRequired2, v => v.RequiredParamValue2TextBox.Text));
+            //绑定需参命令
+            action(this.BindCommand(ViewModel, vm => vm.CommandRequireParam, v => v.CommandRParamButton,"MouseEnter"));
+        });
+            
+        ViewModel = new CommandViewModel();
+
+4. 说明：
+	绑定命令时 ReactiveCommand.Create() 的 Func<> 参数需要注意：
+		Func 为无参数无返回方法；
+		Func<T> 为单参数无返回方法；
+		Func<T, TResult> 为单参数有返回方法；
+		Func<>最多只接受两个泛型参数，所以方法需要多个参数时可以使用 Tuple<> 代替；

@@ -9,7 +9,6 @@ namespace Bindings.ViewModels
 {
     public class PersonViewModel : ReactiveObject
     {
-        private Guid guid;
         private string name;
         private DateTime birthday;
         private int age;
