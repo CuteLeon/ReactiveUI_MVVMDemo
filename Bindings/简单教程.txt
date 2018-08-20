@@ -1,0 +1,78 @@
+﻿Bindings:
+
+1. 安装 Nuget 包及依赖包：
+	ReactiveUI
+	ReactiveUI.WinForms
+
+2. 创建 ViewModel：
+	创建类并继承 ReactiveUI.ReactiveObject；
+	创建所需字段和属性；
+		//不需要自动绑定的属性只需要使用自动属性即可；
+		public Guid GUID { get; private set; }
+
+		//需要自动保存并更新的属性需要在 set 里使用 this.RaiseAndSetIfChanged，其他动作也一块写在 set{} ；
+		public string Name
+        {
+            get => name;
+            set => this.RaiseAndSetIfChanged(ref name, value);
+        }
+
+		//只在内部更新，不允许外部修改的属性在 set{} 里使用 this.RaisePropertyChanged 只通知属性改变；
+		public int Age
+        {
+            get => age;
+            private set
+            {
+                age = value;
+                this.RaisePropertyChanged("Age");
+            }
+        }
+
+3. 创建 View：
+	创建 Form 并继承 ReactiveUI.IViewFor<{ViewModel类型}>；
+	实现 IViewFor<> 接口：
+		//绑定的对象
+	    public PersonViewModel ViewModel { get; set; }
+
+        object IViewFor.ViewModel
+        {
+            get => ViewModel;
+            set => ViewModel = (PersonViewModel)value;
+        }
+	View 构造函数内数据绑定：
+		绑定参数：(ViewModel对象, vm => 对象的属性, v => View 的控件的属性, value => 显示数据前预先处理, value => 保存数据前预先处理 );
+
+		//绑定View激活时数据联动
+        this.WhenActivated(action => {
+            //单向绑定GUID
+            action(this.OneWayBind(ViewModel, vm => vm.GUID, v => v.GUIDValueLabel.Text, guid=>guid.ToString("N").ToUpper()));
+
+            //双向绑定姓名
+            action(this.Bind(ViewModel, vm => vm.Name, v => v.NameValueTextBox.Text));
+            action(this.OneWayBind(ViewModel, vm => vm.Name, v => v.Text, name=> $"当前用户：{name}"));
+
+            //双向绑定生日
+            action(this.Bind(ViewModel, vm => vm.Birthday, v => v.BirthdayDateTimePicker.Value, birthday => birthday.Date, value => value.Date));
+
+            //单向绑定年龄
+            action(this.OneWayBind(ViewModel, vm => vm.Age, v => v.AgeValueLabel.Text));
+        });
+
+		//为 ViewModel 赋值，多由外部传入
+		//ViewModel = new PersonViewModel();
+
+4. 使用：
+	创建多个View绑定至同一ViewModel，将会实现所有界面数据联动；
+
+	//创建唯一对象
+	PersonViewModel person = new PersonViewModel();
+
+	//创建多个窗体并绑定至同一对象
+    MainForm form1 = new MainForm();
+    MainForm form2 = new MainForm();
+    form1.ViewModel = person;
+    form2.ViewModel = person;
+    form1.Show();
+    form2.Show();
+
+    Application.Run(new MainForm() { ViewModel = person });
